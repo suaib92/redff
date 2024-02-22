@@ -1,15 +1,66 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
+import axios from 'axios';
 
 function BusBookingForm() {
-  // Retrieve booking data from local storage
-  const bookingData = JSON.parse(localStorage.getItem('bookingData'));
+  const [bookingData, setBookingData] = useState(null);
+  const [selectedBus, setSelectedBus] = useState(null);
+  const [error, setError] = useState(null);
 
-  // Retrieve selected bus data from local storage
-  const selectedBus = JSON.parse(localStorage.getItem('selectedBus'));
+  useEffect(() => {
+    // Retrieve booking data from local storage
+    const bookingDataFromLocalStorage = JSON.parse(localStorage.getItem('bookingData'));
+    setBookingData(bookingDataFromLocalStorage);
 
-  // Check if booking data or selected bus data exists
+    // Retrieve selected bus data from local storage
+    const selectedBusFromLocalStorage = JSON.parse(localStorage.getItem('selectedBus'));
+    setSelectedBus(selectedBusFromLocalStorage);
+  }, []);
+
+  const postDataToBackend = async () => {
+    try {
+      // Make sure both booking data and selected bus data exist
+      if (!bookingData || !selectedBus) {
+        throw new Error('Booking data or selected bus data not found.');
+      }
+
+      // Your backend API endpoint for posting trips
+      const apiUrl = 'http://localhost:5000/api/trips'; // Assuming your backend server is running locally on port 5000
+      
+      // Construct the data object to send to the backend
+      const dataToSend = {
+        from: `${searchDetails.fromLocation.state} - ${searchDetails.fromLocation.district}`,
+        to: `${searchDetails.toLocation.state} - ${searchDetails.toLocation.district}`,
+        date: searchDetails.selectedDate,
+        departure: selectedBus.departureTime,
+        startRating: selectedBus.rating,
+        endRating: 5, // Assuming endRating is a fixed value or you have a specific logic for it
+        operators: selectedBus.name,
+        // Add other fields as needed
+      };
+
+      // Make a POST request to your backend API
+      const response = await axios.post(apiUrl, dataToSend);
+
+      // Handle success response
+      console.log('Data successfully posted to the backend:', response.data);
+      
+      // Optionally, you can clear the local storage after successful submission
+      localStorage.removeItem('bookingData');
+      localStorage.removeItem('selectedBus');
+
+    } catch (error) {
+      // Handle errors
+      setError(error.message);
+      console.error('Error posting data to the backend:', error);
+    }
+  };
+
+  if (error) {
+    return <div className="bg-red-100 text-red-800 p-4">{error}</div>;
+  }
+
   if (!bookingData || !selectedBus) {
-    return <div>No booking data found.</div>;
+    return <div className="bg-gray-100 text-gray-800 p-4">No booking data found.</div>;
   }
 
   // Destructure booking data
@@ -39,15 +90,25 @@ function BusBookingForm() {
       <div>
         <h3 className="text-lg font-semibold mb-2">Bus Name: {selectedBus.name}</h3>
         <p>Rating: {selectedBus.rating}</p>
-        <p>Type: {selectedBus.type}</p>
-        <p>Seats Left: {selectedBus.seatsLeft}</p>
-        <p>Windows Left: {selectedBus.windowsLeft}</p>
-        <p>Start Time: {selectedBus.startTime}</p>
-        <p>Duration: {selectedBus.duration}</p>
-        <p>End Time: {selectedBus.endTime}</p>
-        <p>Cost: {selectedBus.cost}</p>
-        {/* You can add more details as needed */}
+        <p>Type: {selectedBus.category}</p>
+        <p>Seats Left: {selectedBus.totalSeats}</p>
+        <p>Windows Left: {selectedBus.totalWindowSeatsAvailable}</p>
+        
+        {/* Render amenities if available */}
+        {selectedBus.amenities && selectedBus.amenities.length > 0 && (
+          <div>
+            <h4>Amenities:</h4>
+            <ul>
+              {selectedBus.amenities.map((amenity, index) => (
+                <li key={index}>{amenity}</li>
+              ))}
+            </ul>
+          </div>
+        )}
       </div>
+
+      {/* Button to post data to backend */}
+      <button className="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded" onClick={postDataToBackend}>Submit</button>
     </div>
   );
 }
